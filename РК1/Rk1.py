@@ -1,29 +1,29 @@
 class Stroki:
-    def __init__(self, id, content, CharAmount, TableId):
-        self.id = id
-        self.content = content
-        self.CharAmount = CharAmount
+    def __init__(self, Id, Content, CharCount, TableId):
+        self.Id = Id
+        self.Content = Content
+        self.CharCount = CharCount
         self.TableId = TableId
 
     def __repr__(self):
-        return f"Stroki(id={self.id}, content='{self.content}', chars={self.CharAmount}, table_id={self.TableId})"
+        return f"Stroki(Id={self.Id}, Content='{self.Content}', CharCount={self.CharCount}, TableId={self.TableId})"
 
 class Table:
-    def __init__(self, id, name):
-        self.id = id
-        self.name = name
+    def __init__(self, Id, Name):
+        self.Id = Id
+        self.Name = Name
 
     def __repr__(self):
-        return f"Table(id={self.id}, name='{self.name}')"
+        return f"Table(Id={self.Id}, Name='{self.Name}')"
 
-class TableString:
-    def __init__(self, id, StringId, TableId):
-        self.id = id
+class TableStroka:
+    def __init__(self, Id, StringId, TableId):
+        self.Id = Id
         self.StringId = StringId
         self.TableId = TableId
 
     def __repr__(self):
-        return f"TableString(id={self.id}, string_id={self.StringId}, table_id={self.TableId})"
+        return f"TableStroka(Id={self.Id}, StringId={self.StringId}, TableId={self.TableId})"
 
 StrokiList = [
     Stroki(1, "бла-бла", 7, 1),
@@ -32,52 +32,82 @@ StrokiList = [
     Stroki(4, "гильгамеш", 9, 3)
 ]
 
-tables = [
+Tables = [
     Table(1, "текст"),
     Table(2, "мало текста"),
     Table(3, "много текста")
 ]
 
-TableStrings = [
-    TableString(1, 1, 1),
-    TableString(2, 2, 2),
-    TableString(3, 3, 3),
-    TableString(4, 4, 3),
-    TableString(5,3,2) #Добавил эту строку сюда,чтобы показать связь многие-ко-многим
+TableStroki = [
+    TableStroka(1, 1, 1),
+    TableStroka(2, 2, 2),
+    TableStroka(3, 3, 3),
+    TableStroka(4, 4, 3),
+    TableStroka(5, 3, 2)  # Добавил эту строку сюда, чтобы показать связь многие-ко-многим
 ]
 
-print("1. Строки, начинаищиеся с 'б' и их таблицы:")
-result1 = []
-for stroka in StrokiList:
-    if stroka.content.startswith('б'):
-        table = next((t for t in tables if t.id == stroka.TableId), None)
-        if table:
-            result1.append((stroka.content, table.name))
+def RequestOne(StrokiList, Tables):
+    """
+    Запрос 1: Строки, начинающиеся с "б" и их таблицы
+    """
+    StringsWithB = [S for S in StrokiList if S.Content.startswith('б')]
+    Result = list(map(lambda S: {
+        'StringContent': S.Content,
+        'TableName': next((T.Name for T in Tables if T.Id == S.TableId), None),
+        'StringId': S.Id,
+        'TableId': S.TableId
+    }, StringsWithB))
+    return Result
 
-for content, TableName in result1:
-    print(f"   Строка: '{content}', Таблица: '{TableName}'")
 
-print("\n2. Минимальное количество символов в строках таблиц (сортировка по возрастанию):")
+def RequestTwo(StrokiList, Tables):
+    """
+    Запрос 2: Минимальные количества символов в строках таблиц, отсортированные по возрастанию
+    """
+    MinCharsPerTable = {
+        TableObj.Name: min(S.CharCount for S in StrokiList if S.TableId == TableObj.Id)
+        for TableObj in Tables
+        if any(S.TableId == TableObj.Id for S in StrokiList)
+    }
+    SortedResult = sorted(MinCharsPerTable.items(), key=lambda X: X[1])
+    return SortedResult
 
-MinCharsInTable = {}
-for table in tables:
-    TableStrokiList = [s for s in StrokiList if s.TableId == table.id]
-    if TableStrokiList:
-        MinChars = min(s.CharAmount for s in TableStrokiList)
-        MinCharsInTable[table.name] = MinChars
 
-SortedMinChars = sorted(MinCharsInTable.items(), key=lambda x: x[1])
-for TableName, MinChars in SortedMinChars:
-    print(f"   Таблица '{TableName}': {MinChars} символов")
+def RequestThree(StrokiList, Tables, TableStroki):
+    """
+    Запрос 3: Все строки и их таблицы (используя связь многие-ко-многим), отсортированные по ID строки
+    """
+    Result = [
+        {
+            'StringId': Stroka.Id,
+            'StringContent': Stroka.Content,
+            'TableName': TableObj.Name,
+            'TableId': TableObj.Id
+        }
+        for Ts in TableStroki
+        for Stroka in StrokiList if Stroka.Id == Ts.StringId
+        for TableObj in Tables if TableObj.Id == Ts.TableId
+    ]
+    SortedResult = sorted(Result, key=lambda X: X['StringId'])
+    return SortedResult
 
-print("\n3. Все строки и их таблицы (сортировка по ID строки):")
-result3 = []
-for ts in TableStrings:
-    stroka = next((s for s in StrokiList if s.id == ts.StringId), None)
-    table = next((t for t in tables if t.id == ts.TableId), None)
-    if stroka and table:
-        result3.append((stroka.id, stroka.content, table.name))
+def Main():
+    print("\n" + "ЗАПРОС 1: Строки, начинающиеся с 'б' и их таблицы")
 
-result3_sorted = sorted(result3, key=lambda x: x[0])
-for StringId, content, TableName in result3_sorted:
-    print(f"   ID строки: {StringId}, Содержание: '{content}', Таблица: '{TableName}'")
+    Result1 = RequestOne(StrokiList, Tables)
+    for Item in Result1:
+        print(f"Строка: '{Item['StringContent']}', Таблица: '{Item['TableName']}'")
+
+    print("\n" + "ЗАПРОС 2: Минимальные количества символов в строках таблиц")
+
+    Result2 = RequestTwo(StrokiList, Tables)
+    for TableName, MinChars in Result2:
+        print(f"Таблица '{TableName}': {MinChars} символов")
+
+    print("\n" +"ЗАПРОС 3: Все строки и их таблицы (отсортировано по ID строки)")
+
+    Result3 = RequestThree(StrokiList, Tables, TableStroki)
+    for Item in Result3:
+        print(f"ID строки: {Item['StringId']}, Содержание: '{Item['StringContent']}', Таблица: '{Item['TableName']}'")
+
+Main()
